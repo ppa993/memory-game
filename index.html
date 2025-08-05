@@ -15,11 +15,12 @@
 
                 .game-board {
                         display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-                        gap: 1rem;
+                        gap: 0.75rem;
                         padding: 1rem;
-                        max-width: 900px;
+                        max-width: 1000px;
                         margin: 0 auto;
+                        justify-content: center;
+                        /* Grid columns will be set dynamically via JavaScript */
                 }
 
                 .card-container {
@@ -28,6 +29,9 @@
                         width: 100%;
                         cursor: pointer;
                         position: relative;
+                        aspect-ratio: 1;
+                        min-height: 80px;
+                        max-height: 120px;
                 }
 
                 .card {
@@ -345,6 +349,86 @@
                                 { id: 'w-group', name: 'Hàng W' },
                         ];
 
+                        // Function to calculate optimal grid dimensions
+                        function calculateOptimalGrid(cardCount) {
+                                // Handle special cases for better aesthetics
+                                const gridOptions = {
+                                        4: { cols: 2, rows: 2 },
+                                        6: { cols: 3, rows: 2 },
+                                        8: { cols: 4, rows: 2 },
+                                        9: { cols: 3, rows: 3 },
+                                        10: { cols: 5, rows: 2 },
+                                        12: { cols: 4, rows: 3 },
+                                        14: { cols: 7, rows: 2 },
+                                        15: { cols: 5, rows: 3 },
+                                        16: { cols: 4, rows: 4 },
+                                        18: { cols: 6, rows: 3 },
+                                        20: { cols: 5, rows: 4 },
+                                        22: { cols: 7, rows: 4 }, // Wide layout for 22
+                                        24: { cols: 6, rows: 4 },
+                                        25: { cols: 5, rows: 5 },
+                                        30: { cols: 6, rows: 5 },
+                                        32: { cols: 8, rows: 4 },
+                                        36: { cols: 6, rows: 6 },
+                                        40: { cols: 8, rows: 5 }
+                                };
+
+                                // If we have a predefined optimal layout, use it
+                                if (gridOptions[cardCount]) {
+                                        return gridOptions[cardCount];
+                                }
+
+                                // For other numbers, calculate the best rectangular layout
+                                let bestCols = Math.ceil(Math.sqrt(cardCount));
+                                let bestRows = Math.ceil(cardCount / bestCols);
+
+                                // Try to find a more rectangular layout if it's better
+                                for (let cols = 2; cols <= cardCount; cols++) {
+                                        const rows = Math.ceil(cardCount / cols);
+                                        const totalCells = cols * rows;
+                                        const currentBest = bestCols * bestRows;
+
+                                        // Prefer layouts with fewer empty cells and better aspect ratio
+                                        if (totalCells < currentBest ||
+                                            (totalCells === currentBest && Math.abs(cols - rows) < Math.abs(bestCols - bestRows))) {
+                                                bestCols = cols;
+                                                bestRows = rows;
+                                        }
+                                }
+
+                                return { cols: bestCols, rows: bestRows };
+                        }
+
+                        // Function to apply dynamic grid layout
+                        function setDynamicGrid(cardCount) {
+                                const { cols, rows } = calculateOptimalGrid(cardCount);
+                                const gameBoard = document.getElementById('game-board');
+
+                                // Set grid template columns
+                                gameBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+                                // Adjust gap and max-width based on column count
+                                if (cols <= 4) {
+                                        gameBoard.style.gap = '1rem';
+                                        gameBoard.style.maxWidth = '600px';
+                                } else if (cols <= 6) {
+                                        gameBoard.style.gap = '0.75rem';
+                                        gameBoard.style.maxWidth = '800px';
+                                } else {
+                                        gameBoard.style.gap = '0.5rem';
+                                        gameBoard.style.maxWidth = '1000px';
+                                }
+
+                                // Adjust on mobile devices
+                                if (window.innerWidth <= 480 && cols > 4) {
+                                        // Force smaller grid on mobile for readability
+                                        const mobileCols = Math.min(4, cols);
+                                        gameBoard.style.gridTemplateColumns = `repeat(${mobileCols}, 1fr)`;
+                                        gameBoard.style.gap = '0.5rem';
+                                        gameBoard.style.maxWidth = '100%';
+                                }
+                        }
+
                         // Function to start the timer
                         function startTimer() {
                                 if (timer) return; // Prevent multiple timers from running
@@ -482,6 +566,9 @@
                                 // Shuffle the cards again
                                 gameContent.sort(() => Math.random() - 0.5);
 
+                                // Set dynamic grid layout based on card count
+                                setDynamicGrid(gameContent.length);
+
                                 // Clear the existing board
                                 gameBoard.innerHTML = '';
 
@@ -611,6 +698,14 @@
                         // Listen for changes in the script mode radio buttons
                         scriptModeRadios.forEach(radio => {
                                 radio.addEventListener('change', handleScriptModeChange);
+                        });
+
+                        // Handle window resize for responsive grid
+                        window.addEventListener('resize', () => {
+                                const cards = document.querySelectorAll('.card-container');
+                                if (cards.length > 0) {
+                                        setDynamicGrid(cards.length);
+                                }
                         });
 
                         // Initial setup
